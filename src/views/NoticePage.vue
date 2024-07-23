@@ -9,7 +9,7 @@
         <li>通信量が多いため相手サーバーに負荷をかけるような使い方をしないでください。<br>（Fetch Emojisの繰り返しなど）</li>
         <li>削除動作はしませんが事前に絵文字全体のバックアップをお取りください。</li>
         <li>充分に動作確認はしているつもりですが、すべて自己責任でのご利用をお願いいたします。</li>
-        <li>詳しい使い方は<a href="https://github.com/kanade/misskey-emoji-importer" target="_blank">GitHub</a>をご確認ください。</li>
+        <li>詳しい使い方は<a href="https://github.com/kanade/misskey-emoji-manager" target="_blank">GitHub</a>をご確認ください。</li>
       </ul>
     </div>
 
