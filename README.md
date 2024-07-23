@@ -1,10 +1,8 @@
-# emoji-importer
-
-説明が古くなっているのでサイトを参照してください  
-https://tools.e17.dev/emoji-manager/  
+# misskey-emoji-manager
 
 Misskey向けの絵文字インポートツールです。  
 Misskey標準の機能ではタグやライセンスの確認をしたり、そのままインポートすることができないので補助ツールとして作成しました。  
+
 
 ![alt text](assets/20240720-160857.png)
 
@@ -13,9 +11,12 @@ Misskey標準の機能ではタグやライセンスの確認をしたり、そ�
 yarn install
 yarn serve
 ```
-ブラウザで動作を試したい方はこちら  
-https://tools.e17.dev/emoji-importer/  
-（色んなサーバーに負荷をかけすぎないように注意してください）
+
+以下の説明は少し古くなっているのでサイトを参照してください。  
+サイトでもインポート作業を実行できます。  
+https://tools.e17.dev/emoji-manager/  
+
+---
 
 Source Domainにインポート元のドメインを、Destination Domainにインポート先のドメインを入れます。  
 インポート元にFirefishを指定することはできますが、現段階でインポート先にFirefishは指定できないと思います。そのうち対応するかもしれません。  
