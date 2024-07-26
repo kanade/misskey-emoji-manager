@@ -3,9 +3,27 @@
     <v-card>
       <v-card-title class="headline">設定</v-card-title>
       <v-card-text>
+        <v-select
+          v-if="domainItems.length > 0"
+          v-model="selectedDomain"
+          :items="domainItems"
+          label="ドメインを選択"
+          item-title="text"
+          item-value="value"
+          return-object
+          @update:model-value="onDomainChange"
+        >
+          <template v-slot:item="{ item, props }">
+            <v-list-item v-bind="props" :title="item.raw.text">
+              <template v-slot:append v-if="item.raw.value === 'new'">
+                <v-icon color="primary">mdi-plus</v-icon>
+              </template>
+            </v-list-item>
+          </template>
+        </v-select>
         <div class="mb-3">
           <label for="destination-domain" class="form-label">インポート先のドメイン</label>
-          <input id="destination-domain" v-model="localDestinationDomain" class="form-control" placeholder="" />
+          <input id="destination-domain" v-model="localDestinationDomain" class="form-control" placeholder="" :disabled="selectedDomain.value !== 'new'" />
         </div>
         <div class="mb-3">
           <label for="emoji-token" class="form-label">絵文字の操作と閲覧権限のあるAPIトークン</label>
@@ -26,79 +44,134 @@
 </template>
 
 <script>
-import { mapState, mapMutations } from 'vuex';
+import { ref, computed, watch, onMounted } from 'vue';
+import { useStore } from 'vuex';
 
 export default {
   name: 'SettingsModal',
   props: {
     dialogVisible: Boolean,
   },
-  data() {
-    return {
-      internalDialogVisible: this.dialogVisible,
-      localDestinationDomain: '',
-      localEmojiApiToken: '',
-      localDriveApiToken: '',
+  emits: ['update:dialogVisible'],
+  setup(props, { emit }) {
+    const store = useStore();
+    const internalDialogVisible = ref(props.dialogVisible);
+    const selectedDomain = ref({ text: '新規ドメイン登録', value: 'new' });
+    const localDestinationDomain = ref('');
+    const localEmojiApiToken = ref('');
+    const localDriveApiToken = ref('');
+    const savedDomains = ref([]);
+
+    const domainItems = computed(() => {
+      const items = savedDomains.value.map(domain => ({
+        text: domain,
+        value: domain,
+      }));
+      items.push({ text: '新規ドメイン登録', value: 'new' });
+      return items;
+    });
+
+    const loadSavedDomains = () => {
+      const domains = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('settings_')) {
+          domains.push(key.replace('settings_', ''));
+        }
+      }
+      savedDomains.value = domains;
+      if (domains.length > 0 && selectedDomain.value.value === 'new') {
+        selectedDomain.value = { text: domains[0], value: domains[0] };
+        loadLocalData();
+      }
     };
-  },
-  computed: {
-    ...mapState(['destinationDomain', 'emojiApiToken', 'driveApiToken']),
-  },
-  watch: {
-    dialogVisible(newValue) {
-      this.internalDialogVisible = newValue;
-      if (newValue) {
-        this.loadLocalData();
+
+    const loadLocalData = () => {
+      if (selectedDomain.value && selectedDomain.value.value !== 'new') {
+        const savedSettings = localStorage.getItem(`settings_${selectedDomain.value.value}`);
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          localDestinationDomain.value = settings.destinationDomain;
+          localEmojiApiToken.value = settings.emojiApiToken;
+          localDriveApiToken.value = settings.driveApiToken;
+        }
+      } else {
+        resetForm();
       }
-    },
-    internalDialogVisible(newValue) {
-      this.$emit('update:dialogVisible', newValue);
-    },
-    destinationDomain(newValue) {
-      this.localDestinationDomain = newValue;
-    },
-    emojiApiToken(newValue) {
-      this.localEmojiApiToken = newValue;
-    },
-    driveApiToken(newValue) {
-      this.localDriveApiToken = newValue;
-    },
-  },
-  methods: {
-    ...mapMutations(['setDestinationDomain', 'setEmojiApiToken', 'setDriveApiToken']),
-    saveSettings() {
-      this.setDestinationDomain(this.localDestinationDomain);
-      this.setEmojiApiToken(this.localEmojiApiToken);
-      this.setDriveApiToken(this.localDriveApiToken);
-      const tokens = {
-        destinationDomain: this.localDestinationDomain,
-        emojiApiToken: this.localEmojiApiToken,
-        driveApiToken: this.localDriveApiToken,
+    };
+
+    const resetForm = () => {
+      selectedDomain.value = savedDomains.value.length > 0
+        ? { text: savedDomains.value[0], value: savedDomains.value[0] }
+        : { text: '新規ドメイン登録', value: 'new' };
+      localDestinationDomain.value = '';
+      localEmojiApiToken.value = '';
+      localDriveApiToken.value = '';
+    };
+
+    const onDomainChange = (value) => {
+      selectedDomain.value = value;
+      if (value.value === 'new') {
+        localDestinationDomain.value = '';
+        localEmojiApiToken.value = '';
+        localDriveApiToken.value = '';
+      } else {
+        loadLocalData();
+      }
+    };
+
+    const saveSettings = () => {
+      const domainKey = selectedDomain.value.value === 'new' ? localDestinationDomain.value : selectedDomain.value.value;
+      const settings = {
+        destinationDomain: domainKey,
+        emojiApiToken: localEmojiApiToken.value,
+        driveApiToken: localDriveApiToken.value,
       };
-      localStorage.setItem('tokens', JSON.stringify(tokens));
-      console.log("Saved tokens to localStorage: ", tokens);
-      this.closeDialog();
-    },
-    closeDialog() {
-      this.internalDialogVisible = false;
-    },
-    loadLocalData() {
-      const tokens = JSON.parse(localStorage.getItem('tokens'));
-      if (tokens) {
-        this.localDestinationDomain = tokens.destinationDomain;
-        this.localEmojiApiToken = tokens.emojiApiToken;
-        this.localDriveApiToken = tokens.driveApiToken;
+      
+      localStorage.setItem(`settings_${domainKey}`, JSON.stringify(settings));
+      
+      store.commit('setDestinationDomain', settings.destinationDomain);
+      store.commit('setEmojiApiToken', settings.emojiApiToken);
+      store.commit('setDriveApiToken', settings.driveApiToken);
+      
+      console.log("Saved settings for domain:", domainKey);
+      loadSavedDomains();
+      closeDialog();
+    };
+
+    const closeDialog = () => {
+      internalDialogVisible.value = false;
+      emit('update:dialogVisible', false);
+      resetForm();
+    };
+
+    watch(() => props.dialogVisible, (newValue) => {
+      internalDialogVisible.value = newValue;
+      if (newValue) {
+        loadSavedDomains();
+        loadLocalData();
       }
-    },
-  },
-  mounted() {
-    this.loadLocalData();
+    });
+
+    watch(internalDialogVisible, (newValue) => {
+      emit('update:dialogVisible', newValue);
+    });
+
+    onMounted(() => {
+      loadSavedDomains();
+    });
+
+    return {
+      internalDialogVisible,
+      selectedDomain,
+      localDestinationDomain,
+      localEmojiApiToken,
+      localDriveApiToken,
+      domainItems,
+      onDomainChange,
+      saveSettings,
+      closeDialog,
+    };
   },
 };
 </script>
-
-<style scoped>
-.form-label {
-  font-weight: bold;
-}
-</style>
