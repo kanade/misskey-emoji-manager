@@ -24,14 +24,17 @@
         <div class="mb-3">
           <label for="destination-domain" class="form-label">インポート先のドメイン</label>
           <input id="destination-domain" v-model="localDestinationDomain" class="form-control" placeholder="" :disabled="selectedDomain.value !== 'new'" />
+          <span v-if="showWarning && !localDestinationDomain" class="text-danger">この項目は必須です</span>
         </div>
         <div class="mb-3">
           <label for="emoji-token" class="form-label">絵文字の操作と閲覧権限のあるAPIトークン</label>
           <input id="emoji-token" v-model="localEmojiApiToken" class="form-control" placeholder="" />
+          <span v-if="showWarning && !localEmojiApiToken" class="text-danger">この項目は必須です</span>
         </div>
         <div class="mb-3">
           <label for="drive-token" class="form-label">ドライブの操作と閲覧権限のあるAPIトークン</label>
           <input id="drive-token" v-model="localDriveApiToken" class="form-control" placeholder="" />
+          <span v-if="showWarning && !localDriveApiToken" class="text-danger">この項目は必須です</span>
         </div>
       </v-card-text>
       <v-card-actions>
@@ -61,6 +64,7 @@ export default {
     const localEmojiApiToken = ref('');
     const localDriveApiToken = ref('');
     const savedDomains = ref([]);
+    const showWarning = ref(false);
     let initialDomain = ref(null);
 
     const domainItems = computed(() => {
@@ -126,6 +130,11 @@ export default {
     };
 
     const saveSettings = () => {
+      if (!localDestinationDomain.value || !localEmojiApiToken.value || !localDriveApiToken.value) {
+        showWarning.value = true;
+        return;
+      }
+
       const domainKey = selectedDomain.value.value === 'new' ? localDestinationDomain.value : selectedDomain.value.value;
       const settings = {
         destinationDomain: domainKey,
@@ -155,6 +164,7 @@ export default {
     const resetSettings = () => {
       selectedDomain.value = initialDomain.value; // 初期選択状態にリセット
       loadLocalData(); // 初期選択状態のデータを再読み込み
+      showWarning.value = false; // 警告メッセージをリセット
     };
 
     watch(() => props.dialogVisible, (newValue) => {
@@ -186,12 +196,16 @@ export default {
       saveSettings,
       closeDialog,
       resetSettings,
+      showWarning,
     };
   },
 };
 </script>
 
 <style scoped>
+.text-danger {
+  color: red;
+}
 .mb-3 {
   margin-bottom: 1rem;
 }
