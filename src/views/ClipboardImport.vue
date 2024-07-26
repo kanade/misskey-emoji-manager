@@ -93,9 +93,8 @@ import EmojiList from '../components/EmojiList.vue';
 import StyleNotification from '../components/StyleNotification.vue';
 import axios from 'axios';
 import * as utils from '../utils';
-import { mapState } from 'vuex';
+import { mapState, mapActions, useStore } from 'vuex';
 import { ref, watch } from 'vue';
-import { useStore } from 'vuex';
 
 const axiosInstance = axios.create({
   headers: {
@@ -231,7 +230,26 @@ export default {
     app = this;
     this.loadLocalStorage();
   },
+  mounted() {
+    this.loadSettings();
+  },
   methods: {
+    ...mapActions(['importAllEmojis']),
+    loadSettings() {
+      console.log('loadSettings method called'); // デバッグ用
+      const lastSelectedDomain = localStorage.getItem('lastSelectedDomain');
+      if (lastSelectedDomain) {
+        const { emojiApiToken, driveApiToken } = utils.getToken(lastSelectedDomain);
+        this.$store.commit('setDestinationDomain', lastSelectedDomain);
+        this.$store.commit('setEmojiApiToken', emojiApiToken);
+        this.$store.commit('setDriveApiToken', driveApiToken);
+      } else {
+        console.error('No lastSelectedDomain found in localStorage');
+      }
+    },
+    mounted() {
+      this.loadSettings();
+    },
     loadLocalStorage() {
       this.sourceDomain = localStorage.getItem('sourceDomain') || '';
     },

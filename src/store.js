@@ -75,7 +75,7 @@ export default createStore({
     },
     async importSelectedEmoji({ state }) {
       try {
-        const emoji = state.selectedEmojis[0]; // 例として最初の選択された絵文字をインポート
+        const emoji = state.selectedEmojis[0];
         await axios.post(`${state.destinationDomain}/api/admin/emoji/add`, {
           i: state.apiToken,
           name: emoji.name,

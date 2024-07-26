@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import BulkImport from './views/BulkImport.vue';
-import ClipboardImport from './views/ClipboardImport.vue';
-import NoticePage from './views/NoticePage.vue';
+import BulkImport from '@/views/BulkImport.vue';
+import ClipboardImport from '@/views/ClipboardImport.vue';
+import NoticePage from '@/views/NoticePage.vue';
 
 const routes = [
   {

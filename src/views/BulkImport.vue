@@ -78,7 +78,7 @@ import EmojiList from '../components/EmojiList.vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import * as utils from '../utils';
-import { mapState } from 'vuex';
+import { mapState, mapActions } from 'vuex';
 
 const axiosInstance = axios.create({
   headers: {
@@ -151,7 +151,23 @@ export default {
     app = this;
     this.loadLocalStorage();
   },
+  mounted() {
+    this.loadSettings();
+  },
   methods: {
+    ...mapActions(['importAllEmojis']),
+    loadSettings() {
+      console.log('loadSettings method called'); // デバッグ用
+      const lastSelectedDomain = localStorage.getItem('lastSelectedDomain');
+      if (lastSelectedDomain) {
+        const { emojiApiToken, driveApiToken } = utils.getToken(lastSelectedDomain);
+        this.$store.commit('setDestinationDomain', lastSelectedDomain);
+        this.$store.commit('setEmojiApiToken', emojiApiToken);
+        this.$store.commit('setDriveApiToken', driveApiToken);
+      } else {
+        console.error('No lastSelectedDomain found in localStorage');
+      }
+    },
     loadLocalStorage() {
       this.sourceDomain = localStorage.getItem('sourceDomain') || '';
     },
