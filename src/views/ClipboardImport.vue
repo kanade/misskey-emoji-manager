@@ -3,52 +3,83 @@
     <h1 class="text-center mb-4">Clipboard Import</h1>
     <div class="mb-3">
       <label for="source-domain" class="form-label">Source Domain</label>
-      <input id="source-domain" v-model="sourceDomain" class="form-control w-100" placeholder="Enter source domain" />
+      <v-text-field
+        id="source-domain"
+        v-model="sourceDomain"
+        placeholder="Enter source domain"
+        outlined
+        dense
+      ></v-text-field>
     </div>
     <div class="mb-3">
       <label for="emoji-input" class="form-label">Emoji Input</label>
-      <textarea id="emoji-input" v-model="emojiInput" class="form-control" placeholder="Paste your emoji text here" rows="3"></textarea>
-      <button class="btn btn-secondary mt-2 w-100" @click="extractEmojis">Extract Emojis</button>
+      <v-textarea
+        id="emoji-input"
+        v-model="emojiInput"
+        placeholder="Paste your emoji text here"
+        rows="3"
+        outlined
+      ></v-textarea>
+      <v-btn
+        color="primary"
+        block
+        @click="extractEmojis"
+        :loading="loading"
+        :disabled="!sourceDomain || !emojiInput"
+      >
+        Extract Emojis
+      </v-btn>
     </div>
     <div class="table-container">
-      <EmojiList :emojis="emojis" :searchTerm="searchTerm" :selectedEmojis="selectedEmojis" @update:selectedEmojis="updateSelectedEmojis" />
+      <EmojiList 
+        :emojis="emojis" 
+        :searchTerm="searchTerm" 
+        :selectedEmojis="selectedEmojis" 
+        @update:selectedEmojis="updateSelectedEmojis" 
+      />
     </div>
-    <v-card class="mb-4">
-      <v-card-title>フォルダ設定</v-card-title>
-      <v-card-text>
-        <v-switch
-          v-model="createFolder"
-          label="フォルダを作成してアップロード"
-          color="primary"
-        ></v-switch>
-        <v-switch
-          v-if="createFolder"
-          v-model="useCategoryAsFolder"
-          label="カテゴリ名をフォルダ名に使用する"
-          color="secondary"
-        ></v-switch>
-        <v-text-field
-          v-if="createFolder && !useCategoryAsFolder"
-          v-model="folderName"
-          label="フォルダ名"
-          placeholder="フォルダ名を入力してください"
-          :rules="[v => !!v || 'フォルダ名は必須です']"
-          required
-        ></v-text-field>
-      </v-card-text>
-    </v-card>
-    <div class="text-center mb-3">
-      <button class="btn btn-success w-100" @click="importEmojis">Import Selected Emojis</button>
+    <v-expansion-panels>
+      <v-expansion-panel>
+        <v-expansion-panel-title>Folder Options</v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-switch v-model="createFolder" label="Create folder for upload"></v-switch>
+          <v-switch 
+            v-if="createFolder" 
+            v-model="useCategoryAsFolder" 
+            label="Use emoji category as folder name"
+          ></v-switch>
+          <v-text-field
+            v-if="createFolder && !useCategoryAsFolder"
+            v-model="folderName"
+            label="Folder Name"
+            placeholder="Enter folder name"
+          ></v-text-field>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+    <div class="text-center my-3">
+      <v-btn 
+        color="success" 
+        block 
+        @click="importEmojis" 
+        :loading="loading" 
+        :disabled="selectedEmojis.length === 0"
+      >
+        {{ loading ? 'Importing...' : `Import ${selectedEmojis.length} Selected Emojis` }}
+      </v-btn>
     </div>
     <div class="request-log mt-4" ref="logContainer">
       <h5>Request Logs</h5>
-      <ul>
-        <li v-for="log in requestLogs" :key="log.url + log.method + log.timestamp">
-          <strong>{{ log.method }}</strong> {{ log.url }} - <span :class="getStatusClass(log.status)">{{ log.status }}</span>
-        </li>
-      </ul>
+      <v-list dense>
+        <v-list-item v-for="log in requestLogs" :key="log.url + log.method + log.timestamp">
+          <v-list-item-title>
+            <strong>{{ log.method }}</strong> {{ log.url }} - 
+            <span :class="getStatusClass(log.status)">{{ log.status }}</span>
+          </v-list-item-title>
+        </v-list-item>
+      </v-list>
     </div>
-    <style-notification
+    <StyleNotification
       :message="notificationMessage"
       :color="notificationColor"
       :icon="notificationIcon"
@@ -63,7 +94,8 @@ import StyleNotification from '../components/StyleNotification.vue';
 import axios from 'axios';
 import * as utils from '../utils';
 import { mapState } from 'vuex';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
+import { useStore } from 'vuex';
 
 const axiosInstance = axios.create({
   headers: {
@@ -110,12 +142,42 @@ axiosInstance.interceptors.response.use(
 );
 
 export default {
-  name: 'EmojiClipboardImporter',
+  name: 'ClipboardImport',
   components: {
     EmojiList,
     StyleNotification,
   },
   setup() {
+    const store = useStore();
+    const selectedDomain = ref('');
+    const emojiApiToken = ref('');
+    const driveApiToken = ref('');
+
+    const loadSelectedDomain = () => {
+      const lastSelectedDomain = localStorage.getItem('lastSelectedDomain');
+      if (lastSelectedDomain) {
+        selectedDomain.value = lastSelectedDomain;
+        const savedSettings = localStorage.getItem(`settings_${lastSelectedDomain}`);
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          emojiApiToken.value = settings.emojiApiToken;
+          driveApiToken.value = settings.driveApiToken;
+        }
+      }
+    };
+
+    watch(() => store.state.destinationDomain, (newDomain) => {
+      if (newDomain) {
+        selectedDomain.value = newDomain;
+        const savedSettings = localStorage.getItem(`settings_${newDomain}`);
+        if (savedSettings) {
+          const settings = JSON.parse(savedSettings);
+          emojiApiToken.value = settings.emojiApiToken;
+          driveApiToken.value = settings.driveApiToken;
+        }
+      }
+    });
+
     const notificationMessage = ref('');
     const notificationColor = ref('success');
     const notificationIcon = ref('mdi-check-circle');
@@ -130,7 +192,12 @@ export default {
       notificationMessage.value = '';
     };
 
+    loadSelectedDomain();
+
     return {
+      selectedDomain,
+      emojiApiToken,
+      driveApiToken,
       notificationMessage,
       notificationColor,
       notificationIcon,
@@ -155,7 +222,10 @@ export default {
     };
   },
   computed: {
-    ...mapState(['destinationDomain', 'emojiApiToken', 'driveApiToken']),
+    ...mapState(['destinationDomain']),
+    currentDestinationDomain() {
+      return this.selectedDomain || this.destinationDomain;
+    },
   },
   created() {
     app = this;
@@ -175,7 +245,7 @@ export default {
         const matches = [...this.emojiInput.matchAll(regex)];
         const emojiNames = [...new Set(matches.map(match => match[1]))];
         this.emojis = await this.fetchEmojisDetails(emojiNames);
-        this.showNotification('絵文字の抽出が完了しました', 'success', 'mdi-emoticon');
+        this.showNotification(`${this.emojis.length}個の絵文字を抽出しました`, 'success', 'mdi-emoticon');
       } catch (error) {
         console.error('Error extracting emojis:', error);
         this.showNotification('絵文字の抽出中にエラーが発生しました', 'error', 'mdi-alert-circle');
@@ -264,7 +334,14 @@ export default {
     async importEmojis() {
       this.loading = true;
       try {
-        let destinationDomain = this.destinationDomain;
+        if (!this.currentDestinationDomain) {
+          throw new Error('宛先ドメインが設定されていません');
+        }
+        if (!this.emojiApiToken || !this.driveApiToken) {
+          throw new Error('APIトークンが設定されていません');
+        }
+
+        let destinationDomain = this.currentDestinationDomain;
         if (!destinationDomain.startsWith('http://') && !destinationDomain.startsWith('https://')) {
           destinationDomain = `https://${destinationDomain}`;
         }
@@ -321,10 +398,7 @@ export default {
             errorCount++;
           }
         }
-        console.log('All emojis import attempt completed');
 
-        utils.setToken(this.destinationDomain, this.emojiApiToken, this.driveApiToken);
-        
         if (errorCount === 0) {
           this.showNotification(`${importedCount}個の絵文字をインポートしました`, 'success', 'mdi-emoticon');
         } else {
@@ -332,7 +406,7 @@ export default {
         }
       } catch (error) {
         console.error('Error during the import process:', error);
-        this.showNotification('インポート中にエラーが発生しました', 'error', 'mdi-alert-circle');
+        this.showNotification(`インポート中にエラーが発生しました: ${error.message}`, 'error', 'mdi-alert-circle');
       } finally {
         this.loading = false;
         this.folderIds = {};
@@ -415,41 +489,77 @@ export default {
 };
 </script>
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
-  margin: 0;
-  padding: 20px;
+<style scoped>
+.container {
+  /* max-width: 960px; */
+  margin: 0 auto;
+}
+
+.table-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: 20px;
 }
 
 .request-log {
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
   padding: 10px;
-  margin-top: 20px;
+  background-color: #f5f5f5;
+}
+
+.request-log h5 {
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .request-log ul {
   list-style-type: none;
   padding: 0;
+  margin: 0;
 }
 
 .request-log li {
   margin-bottom: 5px;
+  font-size: 0.9em;
 }
 
 .text-success {
-  color: green;
+  color: #4caf50;
 }
 
 .text-warning {
-  color: orange;
+  color: #ff9800;
 }
 
 .text-danger {
-  color: red;
+  color: #f44336;
+}
+
+.v-btn {
+  text-transform: none;
+}
+
+.v-expansion-panel {
+  margin-bottom: 20px;
+}
+
+.v-expansion-panel-title {
+  font-weight: bold;
+}
+
+.v-switch {
+  margin-bottom: 10px;
+}
+
+.v-text-field {
+  margin-top: 10px;
+}
+
+.emoji-input {
+  min-height: 100px;
+  resize: vertical;
 }
 </style>

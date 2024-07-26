@@ -6,54 +6,65 @@
       <input id="source-domain" v-model="sourceDomain" class="form-control w-100" placeholder="Enter source domain" />
     </div>
     <div class="d-flex mb-3">
-      <button class="btn btn-primary w-100 me-2" @click="loadFromLocalStorage">
-        <v-icon left>mdi-book-open-variant</v-icon> Load from LocalStorage
-      </button>
-      <button class="btn btn-danger w-100" @click="fetchEmojis">
-        <v-icon left>mdi-cloud-download</v-icon> Fetch Emojis
-      </button>
+      <v-btn class="flex-grow-1 me-2" color="primary" @click="loadFromLocalStorage" :loading="loading">
+        <v-icon left>mdi-content-save</v-icon>
+        Load from LocalStorage
+      </v-btn>
+      <v-btn class="flex-grow-1" color="error" @click="fetchEmojis" :loading="loading">
+        <v-icon left>mdi-cloud-download</v-icon>
+        Fetch Emojis
+      </v-btn>
     </div>
     <div class="table-container">
-      <EmojiList :emojis="emojis" :searchTerm="searchTerm" :selectedEmojis="selectedEmojis" @update:selectedEmojis="updateSelectedEmojis" />
+      <EmojiList 
+        :emojis="emojis" 
+        :searchTerm="searchTerm" 
+        :selectedEmojis="selectedEmojis" 
+        @update:selectedEmojis="updateSelectedEmojis" 
+      />
     </div>
-
-    <v-card class="mb-4">
-      <v-card-title>フォルダ設定</v-card-title>
-      <v-card-text>
-        <v-switch
-          v-model="createFolder"
-          label="フォルダを作成してアップロード"
-          color="primary"
-        ></v-switch>
-        <v-switch
-          v-if="createFolder"
-          v-model="useCategoryAsFolder"
-          label="カテゴリ名をフォルダ名に使用する"
-          color="secondary"
-        ></v-switch>
-        <v-text-field
-          v-if="createFolder && !useCategoryAsFolder"
-          v-model="folderName"
-          label="フォルダ名"
-          placeholder="フォルダ名を入力してください"
-          :rules="[v => !!v || 'フォルダ名は必須です']"
-          required
-        ></v-text-field>
-      </v-card-text>
-    </v-card>
-
-    <div class="text-center mb-3">
-      <button class="btn btn-success w-100" @click="importEmojis">Import Selected Emojis</button>
+    <v-expansion-panels>
+      <v-expansion-panel>
+        <v-expansion-panel-title>Folder Options</v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <v-switch v-model="createFolder" label="Create folder for upload"></v-switch>
+          <v-switch 
+            v-if="createFolder" 
+            v-model="useCategoryAsFolder" 
+            label="Use emoji category as folder name"
+          ></v-switch>
+          <v-text-field
+            v-if="createFolder && !useCategoryAsFolder"
+            v-model="folderName"
+            label="Folder Name"
+            placeholder="Enter folder name"
+          ></v-text-field>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+    <div class="text-center my-3">
+      <v-btn 
+        color="success" 
+        block 
+        @click="importEmojis" 
+        :loading="loading" 
+        :disabled="selectedEmojis.length === 0"
+      >
+        {{ loading ? 'Importing...' : `Import ${selectedEmojis.length} Selected Emojis` }}
+      </v-btn>
     </div>
     <div class="request-log mt-4" ref="logContainer">
       <h5>Request Logs</h5>
-      <ul>
-        <li v-for="log in requestLogs" :key="log.url + log.method + log.timestamp">
-          <strong>{{ log.method }}</strong> {{ log.url }} - <span :class="getStatusClass(log.status)">{{ log.status }}</span>
-        </li>
-      </ul>
+      <v-list dense>
+        <v-list-item v-for="log in requestLogs" :key="log.url + log.method + log.timestamp">
+          <v-list-item-title>
+            <strong>{{ log.method }}</strong> {{ log.url }} - 
+            <span :class="getStatusClass(log.status)">{{ log.status }}</span>
+          </v-list-item-title>
+        </v-list-item>
+      </v-list>
     </div>
-    <style-notification
+    <StyleNotification
       :message="notificationMessage"
       :color="notificationColor"
       :icon="notificationIcon"
@@ -64,12 +75,10 @@
 
 <script>
 import EmojiList from '../components/EmojiList.vue';
-import StyleNotification from '../components/StyleNotification.vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import * as utils from '../utils';
 import { mapState } from 'vuex';
-import { ref } from 'vue';
 
 const axiosInstance = axios.create({
   headers: {
@@ -119,30 +128,6 @@ export default {
   name: 'BulkImport',
   components: {
     EmojiList,
-    StyleNotification,
-  },
-  setup() {
-    const notificationMessage = ref('');
-    const notificationColor = ref('success');
-    const notificationIcon = ref('mdi-check-circle');
-
-    const showNotification = (message, color = 'success', icon = 'mdi-check-circle') => {
-      notificationMessage.value = message;
-      notificationColor.value = color;
-      notificationIcon.value = icon;
-    };
-
-    const resetNotification = () => {
-      notificationMessage.value = '';
-    };
-
-    return {
-      notificationMessage,
-      notificationColor,
-      notificationIcon,
-      showNotification,
-      resetNotification,
-    };
   },
   data() {
     return {
@@ -213,11 +198,8 @@ export default {
 
         localStorage.setItem(`emojis_${this.sourceDomain}`, JSON.stringify(detailedEmojis));
         localStorage.setItem('sourceDomain', this.sourceDomain);
-        
-        this.showNotification('絵文字データの取得が完了しました', 'success', 'mdi-emoticon');
       } catch (error) {
         console.error('Error fetching emojis:', error);
-        this.showNotification('絵文字データの取得中にエラーが発生しました', 'error', 'mdi-alert-circle');
       } finally {
         this.loading = false;
       }
@@ -285,9 +267,6 @@ export default {
           destinationDomain = `https://${destinationDomain}`;
         }
 
-        let importedCount = 0;
-        let errorCount = 0;
-
         for (const emoji of this.selectedEmojis) {
           try {
             const exists = await this.checkEmojiExists(emoji.name, destinationDomain);
@@ -301,7 +280,6 @@ export default {
                 timestamp: new Date().toISOString(),
               });
               utils.scrollToBottom(app);
-              errorCount++;
               continue;
             }
 
@@ -331,24 +309,15 @@ export default {
               fileId: fileId,
             });
             console.log(`Emoji ${emoji.name} imported successfully:`, response.data);
-            importedCount++;
           } catch (error) {
             console.error(`Error importing emoji ${emoji.name}:`, error.response ? error.response.data : error.message);
-            errorCount++;
           }
         }
         console.log('All emojis import attempt completed');
 
         utils.setToken(this.destinationDomain, this.emojiApiToken, this.driveApiToken);
-        
-        if (errorCount === 0) {
-          this.showNotification(`${importedCount}個の絵文字をインポートしました`, 'success', 'mdi-emoticon');
-        } else {
-          this.showNotification(`${importedCount}個の絵文字をインポートしました（${errorCount}個のエラー）`, 'warning', 'mdi-alert-circle');
-        }
       } catch (error) {
         console.error('Error during the import process:', error);
-        this.showNotification('インポート中にエラーが発生しました', 'error', 'mdi-alert-circle');
       } finally {
         this.loading = false;
         this.folderIds = {};
@@ -431,41 +400,80 @@ export default {
 };
 </script>
 
-<style>
-body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f4f4;
-  margin: 0;
-  padding: 20px;
+<style scoped>
+.table-container {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin-bottom: 20px;
 }
 
 .request-log {
-  max-height: 150px;
+  max-height: 200px;
   overflow-y: auto;
-  background: #fff;
-  border: 1px solid #ddd;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
   padding: 10px;
-  margin-top: 20px;
+  background-color: #f5f5f5;
+}
+
+.request-log h5 {
+  margin-top: 0;
+  margin-bottom: 10px;
 }
 
 .request-log ul {
   list-style-type: none;
   padding: 0;
+  margin: 0;
 }
 
 .request-log li {
   margin-bottom: 5px;
+  font-size: 0.9em;
 }
 
 .text-success {
-  color: green;
+  color: #4caf50;
 }
 
 .text-warning {
-  color: orange;
+  color: #ff9800;
 }
 
 .text-danger {
-  color: red;
+  color: #f44336;
+}
+
+.v-btn {
+  text-transform: none;
+}
+
+.v-expansion-panel {
+  margin-bottom: 20px;
+}
+
+.v-expansion-panel-title {
+  font-weight: bold;
+}
+
+.v-switch {
+  margin-bottom: 10px;
+}
+
+.v-text-field {
+  margin-top: 10px;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.flex-grow-1 {
+  flex-grow: 1;
+  width: 50%;
+}
+
+.me-2 {
+  margin-right: 8px;
 }
 </style>
