@@ -65,7 +65,7 @@ import { mapState } from 'vuex';
 
 const axiosInstance = axios.create({
   headers: {
-    'X-Custom-User-Agent': 'MyCustomUserAgent/1.0',
+    'X-Custom-User-Agent': 'Emoji-Manager/1.0',
   }
 });
 
