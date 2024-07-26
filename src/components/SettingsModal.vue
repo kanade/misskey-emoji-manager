@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="internalDialogVisible" max-width="500px">
+  <v-dialog v-model="internalDialogVisible" max-width="500px" @click:outside="resetSettings">
     <v-card>
       <v-card-title class="headline">設定</v-card-title>
       <v-card-text>
@@ -61,6 +61,7 @@ export default {
     const localEmojiApiToken = ref('');
     const localDriveApiToken = ref('');
     const savedDomains = ref([]);
+    let initialDomain = ref(null);
 
     const domainItems = computed(() => {
       const items = savedDomains.value.map(domain => ({
@@ -92,6 +93,7 @@ export default {
       }
 
       loadLocalData();
+      initialDomain.value = selectedDomain.value; // 初期選択状態を保存
     };
 
     const loadLocalData = () => {
@@ -121,8 +123,6 @@ export default {
       } else {
         loadLocalData();
       }
-      // 選択されたドメインを保存
-      localStorage.setItem('lastSelectedDomain', value.value);
     };
 
     const saveSettings = () => {
@@ -132,16 +132,16 @@ export default {
         emojiApiToken: localEmojiApiToken.value,
         driveApiToken: localDriveApiToken.value,
       };
-      
+
       localStorage.setItem(`settings_${domainKey}`, JSON.stringify(settings));
-      
+
       store.commit('setDestinationDomain', settings.destinationDomain);
       store.commit('setEmojiApiToken', settings.emojiApiToken);
       store.commit('setDriveApiToken', settings.driveApiToken);
-      
+
       // 保存したドメインを現在の選択として保存
       localStorage.setItem('lastSelectedDomain', domainKey);
-      
+
       console.log("Saved settings for domain:", domainKey);
       loadSavedDomains();
       closeDialog();
@@ -150,6 +150,11 @@ export default {
     const closeDialog = () => {
       internalDialogVisible.value = false;
       emit('update:dialogVisible', false);
+    };
+
+    const resetSettings = () => {
+      selectedDomain.value = initialDomain.value; // 初期選択状態にリセット
+      loadLocalData(); // 初期選択状態のデータを再読み込み
     };
 
     watch(() => props.dialogVisible, (newValue) => {
@@ -161,6 +166,9 @@ export default {
 
     watch(internalDialogVisible, (newValue) => {
       emit('update:dialogVisible', newValue);
+      if (!newValue) {
+        resetSettings(); // ダイアログが閉じられた時に設定をリセット
+      }
     });
 
     onMounted(() => {
@@ -177,7 +185,14 @@ export default {
       onDomainChange,
       saveSettings,
       closeDialog,
+      resetSettings,
     };
   },
 };
 </script>
+
+<style scoped>
+.mb-3 {
+  margin-bottom: 1rem;
+}
+</style>
