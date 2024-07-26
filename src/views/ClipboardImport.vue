@@ -48,14 +48,22 @@
         </li>
       </ul>
     </div>
+    <style-notification
+      :message="notificationMessage"
+      :color="notificationColor"
+      :icon="notificationIcon"
+      @close="resetNotification"
+    />
   </div>
 </template>
 
 <script>
 import EmojiList from '../components/EmojiList.vue';
+import StyleNotification from '../components/StyleNotification.vue';
 import axios from 'axios';
 import * as utils from '../utils';
 import { mapState } from 'vuex';
+import { ref } from 'vue';
 
 const axiosInstance = axios.create({
   headers: {
@@ -105,6 +113,30 @@ export default {
   name: 'EmojiClipboardImporter',
   components: {
     EmojiList,
+    StyleNotification,
+  },
+  setup() {
+    const notificationMessage = ref('');
+    const notificationColor = ref('success');
+    const notificationIcon = ref('mdi-check-circle');
+
+    const showNotification = (message, color = 'success', icon = 'mdi-check-circle') => {
+      notificationMessage.value = message;
+      notificationColor.value = color;
+      notificationIcon.value = icon;
+    };
+
+    const resetNotification = () => {
+      notificationMessage.value = '';
+    };
+
+    return {
+      notificationMessage,
+      notificationColor,
+      notificationIcon,
+      showNotification,
+      resetNotification,
+    };
   },
   data() {
     return {
@@ -137,10 +169,19 @@ export default {
       return utils.getStatusClass(status);
     },
     async extractEmojis() {
-      const regex = /:(\w+):/g;
-      const matches = [...this.emojiInput.matchAll(regex)];
-      const emojiNames = [...new Set(matches.map(match => match[1]))];
-      this.emojis = await this.fetchEmojisDetails(emojiNames);
+      this.loading = true;
+      try {
+        const regex = /:(\w+):/g;
+        const matches = [...this.emojiInput.matchAll(regex)];
+        const emojiNames = [...new Set(matches.map(match => match[1]))];
+        this.emojis = await this.fetchEmojisDetails(emojiNames);
+        this.showNotification('絵文字の抽出が完了しました', 'success', 'mdi-emoticon');
+      } catch (error) {
+        console.error('Error extracting emojis:', error);
+        this.showNotification('絵文字の抽出中にエラーが発生しました', 'error', 'mdi-alert-circle');
+      } finally {
+        this.loading = false;
+      }
     },
     async fetchEmojisDetails(emojiNames) {
       const detailedEmojis = [];
@@ -228,6 +269,9 @@ export default {
           destinationDomain = `https://${destinationDomain}`;
         }
 
+        let importedCount = 0;
+        let errorCount = 0;
+
         for (const emoji of this.selectedEmojis) {
           try {
             const exists = await this.checkEmojiExists(emoji.name, destinationDomain);
@@ -241,6 +285,7 @@ export default {
                 timestamp: new Date().toISOString(),
               });
               utils.scrollToBottom(app);
+              errorCount++;
               continue;
             }
 
@@ -270,15 +315,24 @@ export default {
               fileId: fileId,
             });
             console.log(`Emoji ${emoji.name} imported successfully:`, response.data);
+            importedCount++;
           } catch (error) {
             console.error(`Error importing emoji ${emoji.name}:`, error.response ? error.response.data : error.message);
+            errorCount++;
           }
         }
         console.log('All emojis import attempt completed');
 
         utils.setToken(this.destinationDomain, this.emojiApiToken, this.driveApiToken);
+        
+        if (errorCount === 0) {
+          this.showNotification(`${importedCount}個の絵文字をインポートしました`, 'success', 'mdi-emoticon');
+        } else {
+          this.showNotification(`${importedCount}個の絵文字をインポートしました（${errorCount}個のエラー）`, 'warning', 'mdi-alert-circle');
+        }
       } catch (error) {
         console.error('Error during the import process:', error);
+        this.showNotification('インポート中にエラーが発生しました', 'error', 'mdi-alert-circle');
       } finally {
         this.loading = false;
         this.folderIds = {};
