@@ -79,18 +79,13 @@
         </v-list-item>
       </v-list>
     </div>
-    <StyleNotification
-      :message="notificationMessage"
-      :color="notificationColor"
-      :icon="notificationIcon"
-      @close="resetNotification"
-    />
+    <StyleNotification ref="notification" />
   </div>
 </template>
 
 <script>
 import EmojiList from '../components/EmojiList.vue';
-import StyleNotification from '../components/StyleNotification.vue';
+import StyleNotification from '@/components/StyleNotification.vue';
 import axios from 'axios';
 import * as utils from '../utils';
 import { mapState, mapActions, useStore } from 'vuex';
@@ -303,6 +298,7 @@ export default {
         };
       } catch (error) {
         console.error(`Error fetching details for emoji ${name}:`, error);
+        this.$refs.notification.showMessage(`Error fetching details for emoji ${name}`, 'error');
         return {
           name,
           url: '',
@@ -373,6 +369,7 @@ export default {
             if (exists) {
               const errorMessage = `Error: :${emoji.name}: already exists.`;
               console.error(errorMessage);
+              this.$refs.notification.showMessage(errorMessage, 'error');
               this.requestLogs.push({
                 method: 'POST',
                 url: `${destinationDomain}/api/emoji?name=${emoji.name}`,
@@ -410,6 +407,7 @@ export default {
               fileId: fileId,
             });
             console.log(`Emoji ${emoji.name} imported successfully:`, response.data);
+            this.$refs.notification.showMessage(`Emoji ${emoji.name} imported successfully`, 'success');
             importedCount++;
           } catch (error) {
             console.error(`Error importing emoji ${emoji.name}:`, error.response ? error.response.data : error.message);

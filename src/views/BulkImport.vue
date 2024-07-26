@@ -64,17 +64,13 @@
         </v-list-item>
       </v-list>
     </div>
-    <StyleNotification
-      :message="notificationMessage"
-      :color="notificationColor"
-      :icon="notificationIcon"
-      @close="resetNotification"
-    />
+    <StyleNotification ref="notification" />
   </div>
 </template>
 
 <script>
 import EmojiList from '../components/EmojiList.vue';
+import StyleNotification from '@/components/StyleNotification.vue';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import * as utils from '../utils';
@@ -128,6 +124,7 @@ export default {
   name: 'BulkImport',
   components: {
     EmojiList,
+    StyleNotification,
   },
   data() {
     return {
@@ -164,8 +161,11 @@ export default {
         this.$store.commit('setDestinationDomain', lastSelectedDomain);
         this.$store.commit('setEmojiApiToken', emojiApiToken);
         this.$store.commit('setDriveApiToken', driveApiToken);
+        // console.log('Settings loaded:', lastSelectedDomain, emojiApiToken, driveApiToken); // デバッグ用
+        // this.$refs.notification.showMessage('Settings loaded successfully', 'success');
       } else {
-        console.error('No lastSelectedDomain found in localStorage');
+        // console.error('No lastSelectedDomain found in localStorage');
+        // this.$refs.notification.showMessage('No lastSelectedDomain found in localStorage', 'error');
       }
     },
     loadLocalStorage() {
@@ -179,6 +179,7 @@ export default {
       if (storedEmojis) {
         this.emojis = JSON.parse(storedEmojis);
         console.log('Emojis loaded from local storage:', this.emojis);
+        this.$refs.notification.showMessage('Emojis loaded from local storage', 'success');
       } else {
         const result = await Swal.fire({
           title: 'ローカルストレージに絵文字データが見つかりません',
@@ -211,11 +212,13 @@ export default {
         const detailedEmojis = await this.fetchEmojisInBatches(emojis, sourceDomain);
         this.emojis = detailedEmojis;
         console.log('Emojis fetched successfully:', detailedEmojis);
+        this.$refs.notification.showMessage('Emojis fetched successfully', 'success');
 
         localStorage.setItem(`emojis_${this.sourceDomain}`, JSON.stringify(detailedEmojis));
         localStorage.setItem('sourceDomain', this.sourceDomain);
       } catch (error) {
         console.error('Error fetching emojis:', error);
+        this.$refs.notification.showMessage('Error fetching emojis', 'error');
       } finally {
         this.loading = false;
       }
@@ -289,6 +292,7 @@ export default {
             if (exists) {
               const errorMessage = `Error: :${emoji.name}: already exists.`;
               console.error(errorMessage);
+              this.$refs.notification.showMessage(errorMessage, 'error');
               this.requestLogs.push({
                 method: 'POST',
                 url: `${destinationDomain}/api/emoji?name=${emoji.name}`,
@@ -325,8 +329,10 @@ export default {
               fileId: fileId,
             });
             console.log(`Emoji ${emoji.name} imported successfully:`, response.data);
+            this.$refs.notification.showMessage(`Emoji ${emoji.name} imported successfully:`, 'success');
           } catch (error) {
             console.error(`Error importing emoji ${emoji.name}:`, error.response ? error.response.data : error.message);
+            this.$refs.notification.showMessage(`Error importing emoji ${emoji.name}:`, 'error');
           }
         }
         console.log('All emojis import attempt completed');
