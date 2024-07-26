@@ -16,6 +16,32 @@
     <div class="table-container">
       <EmojiList :emojis="emojis" :searchTerm="searchTerm" :selectedEmojis="selectedEmojis" @update:selectedEmojis="updateSelectedEmojis" />
     </div>
+
+    <v-card class="mb-4">
+      <v-card-title>フォルダ設定</v-card-title>
+      <v-card-text>
+        <v-switch
+          v-model="createFolder"
+          label="フォルダを作成してアップロード"
+          color="primary"
+        ></v-switch>
+        <v-switch
+          v-if="createFolder"
+          v-model="useCategoryAsFolder"
+          label="カテゴリ名をフォルダ名に使用する"
+          color="secondary"
+        ></v-switch>
+        <v-text-field
+          v-if="createFolder && !useCategoryAsFolder"
+          v-model="folderName"
+          label="フォルダ名"
+          placeholder="フォルダ名を入力してください"
+          :rules="[v => !!v || 'フォルダ名は必須です']"
+          required
+        ></v-text-field>
+      </v-card-text>
+    </v-card>
+
     <div class="text-center mb-3">
       <button class="btn btn-success w-100" @click="importEmojis">Import Selected Emojis</button>
     </div>
@@ -39,7 +65,7 @@ import { mapState } from 'vuex';
 
 const axiosInstance = axios.create({
   headers: {
-    'X-Custom-User-Agent': 'MyCustomUserAgent/1.0',
+    'X-Custom-User-Agent': 'Emoji-Manager/1.0',
   }
 });
 
@@ -95,6 +121,10 @@ export default {
       loading: false,
       requestLogs: [],
       instanceType: 'Unknown',
+      createFolder: false,
+      useCategoryAsFolder: false,
+      folderName: '',
+      folderIds: {},
     };
   },
   computed: {
@@ -149,7 +179,6 @@ export default {
         this.emojis = detailedEmojis;
         console.log('Emojis fetched successfully:', detailedEmojis);
 
-        // 結果をローカルストレージに保存
         localStorage.setItem(`emojis_${this.sourceDomain}`, JSON.stringify(detailedEmojis));
         localStorage.setItem('sourceDomain', this.sourceDomain);
       } catch (error) {
@@ -220,8 +249,7 @@ export default {
         if (!destinationDomain.startsWith('http://') && !destinationDomain.startsWith('https://')) {
           destinationDomain = `https://${destinationDomain}`;
         }
-        const url = `${destinationDomain}/api/admin/emoji/add`;
-        console.log(`Importing emojis to ${url}`);
+
         for (const emoji of this.selectedEmojis) {
           try {
             const exists = await this.checkEmojiExists(emoji.name, destinationDomain);
@@ -237,11 +265,22 @@ export default {
               utils.scrollToBottom(app);
               continue;
             }
-            const fileId = await this.uploadEmojiFile(emoji.url, destinationDomain, this.driveApiToken);
+
+            let folderId = null;
+            if (this.createFolder) {
+              if (this.useCategoryAsFolder) {
+                const category = emoji.category || 'Uncategorized';
+                folderId = await this.ensureFolder(destinationDomain, category);
+              } else {
+                folderId = await this.ensureFolder(destinationDomain, this.folderName);
+              }
+            }
+
+            const fileId = await this.uploadEmojiFile(emoji.url, destinationDomain, this.driveApiToken, folderId);
             if (!fileId) {
               throw new Error(`Failed to upload file for emoji ${emoji.name}`);
             }
-            const response = await axiosInstance.post(url, {
+            const response = await axiosInstance.post(`${destinationDomain}/api/admin/emoji/add`, {
               i: this.emojiApiToken,
               name: emoji.name,
               category: emoji.category,
@@ -264,6 +303,7 @@ export default {
         console.error('Error during the import process:', error);
       } finally {
         this.loading = false;
+        this.folderIds = {};
       }
     },
     async checkEmojiExists(name, domain) {
@@ -276,14 +316,46 @@ export default {
         return false;
       }
     },
-    async uploadEmojiFile(emojiUrl, destinationDomain, apiToken) {
+    async ensureFolder(destinationDomain, folderName) {
+      if (this.folderIds[folderName]) {
+        return this.folderIds[folderName];
+      }
+      
       try {
+        const findResponse = await axiosInstance.post(`${destinationDomain}/api/drive/folders/find`, {
+          i: this.driveApiToken,
+          name: folderName
+        });
+        
+        if (findResponse.data && findResponse.data.length > 0) {
+          this.folderIds[folderName] = findResponse.data[0].id;
+          console.log(`Existing folder found for ${folderName} with id: ${this.folderIds[folderName]}`);
+        } else {
+          const createResponse = await axiosInstance.post(`${destinationDomain}/api/drive/folders/create`, {
+            i: this.driveApiToken,
+            name: folderName
+          });
+          this.folderIds[folderName] = createResponse.data.id;
+          console.log(`New folder created for ${folderName} with id: ${this.folderIds[folderName]}`);
+        }
+        return this.folderIds[folderName];
+      } catch (error) {
+        console.error(`Error ensuring folder for ${folderName}:`, error);
+        return null;
+      }
+    },
+    async uploadEmojiFile(emojiUrl, destinationDomain, apiToken, folderId) {
+      try {
+        const uploadParams = {
+          i: apiToken,
+          url: emojiUrl,
+        };
+        if (folderId) {
+          uploadParams.folderId = folderId;
+        }
         await axiosInstance.post(
           `${destinationDomain}/api/drive/files/upload-from-url`,
-          {
-            i: apiToken,
-            url: emojiUrl,
-          }
+          uploadParams
         );
         console.log(`File uploaded successfully for ${emojiUrl}`);
 
@@ -294,6 +366,7 @@ export default {
           {
             i: apiToken,
             limit: 1,
+            ...(folderId && { folderId: folderId }),
           }
         );
         if (filesResponse.data.length > 0) {
