@@ -80,10 +80,18 @@ export default {
         }
       }
       savedDomains.value = domains;
-      if (domains.length > 0 && selectedDomain.value.value === 'new') {
+
+      // 前回選択されたドメインを読み込む
+      const lastSelectedDomain = localStorage.getItem('lastSelectedDomain');
+      if (lastSelectedDomain && domains.includes(lastSelectedDomain)) {
+        selectedDomain.value = { text: lastSelectedDomain, value: lastSelectedDomain };
+      } else if (domains.length > 0) {
         selectedDomain.value = { text: domains[0], value: domains[0] };
-        loadLocalData();
+      } else {
+        selectedDomain.value = { text: '新規ドメイン登録', value: 'new' };
       }
+
+      loadLocalData();
     };
 
     const loadLocalData = () => {
@@ -101,9 +109,6 @@ export default {
     };
 
     const resetForm = () => {
-      selectedDomain.value = savedDomains.value.length > 0
-        ? { text: savedDomains.value[0], value: savedDomains.value[0] }
-        : { text: '新規ドメイン登録', value: 'new' };
       localDestinationDomain.value = '';
       localEmojiApiToken.value = '';
       localDriveApiToken.value = '';
@@ -112,12 +117,12 @@ export default {
     const onDomainChange = (value) => {
       selectedDomain.value = value;
       if (value.value === 'new') {
-        localDestinationDomain.value = '';
-        localEmojiApiToken.value = '';
-        localDriveApiToken.value = '';
+        resetForm();
       } else {
         loadLocalData();
       }
+      // 選択されたドメインを保存
+      localStorage.setItem('lastSelectedDomain', value.value);
     };
 
     const saveSettings = () => {
@@ -134,6 +139,9 @@ export default {
       store.commit('setEmojiApiToken', settings.emojiApiToken);
       store.commit('setDriveApiToken', settings.driveApiToken);
       
+      // 保存したドメインを現在の選択として保存
+      localStorage.setItem('lastSelectedDomain', domainKey);
+      
       console.log("Saved settings for domain:", domainKey);
       loadSavedDomains();
       closeDialog();
@@ -142,14 +150,12 @@ export default {
     const closeDialog = () => {
       internalDialogVisible.value = false;
       emit('update:dialogVisible', false);
-      resetForm();
     };
 
     watch(() => props.dialogVisible, (newValue) => {
       internalDialogVisible.value = newValue;
       if (newValue) {
         loadSavedDomains();
-        loadLocalData();
       }
     });
 
