@@ -19,6 +19,7 @@
         placeholder="Paste your emoji text here"
         rows="3"
         outlined
+        @input="clearSelectedEmojis"
       ></v-textarea>
       <v-btn
         color="primary"
@@ -241,9 +242,6 @@ export default {
       } else {
         console.error('No lastSelectedDomain found in localStorage');
       }
-    },
-    mounted() {
-      this.loadSettings();
     },
     loadLocalStorage() {
       this.sourceDomain = localStorage.getItem('sourceDomain') || '';
@@ -501,6 +499,9 @@ export default {
         return null;
       }
     },
+    clearSelectedEmojis() {
+      this.selectedEmojis = [];
+    }
   },
 };
 </script>
