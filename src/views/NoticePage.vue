@@ -36,9 +36,9 @@
     <div class="text-left">
       <p>今後のアップデートでやりたいこと</p>
       <ul>
-        <li>フォーク（FirefishやIceshrimpなど）への対応</li>
+        <li><s>フォーク（FirefishやIceshrimpなど）への対応</s> → Firefish対応しました</li>
         <li>絵文字取得やインポートの途中停止</li>
-        <li>インポート完了時の通知</li>
+        <li><s>インポート完了時の通知</s> → たぶん通知出るはず</li>
       </ul>
     </div>
 
