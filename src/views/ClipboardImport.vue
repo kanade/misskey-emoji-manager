@@ -31,12 +31,17 @@
         Extract Emojis
       </v-btn>
     </div>
+    <div class="mb-3">
+      <v-btn @click="selectAll" class="mr-2">Select All</v-btn>
+      <v-btn @click="deselectAll">Deselect All</v-btn>
+    </div>
     <div class="table-container">
       <EmojiList 
         :emojis="emojis" 
         :searchTerm="searchTerm" 
         :selectedEmojis="selectedEmojis" 
-        @update:selectedEmojis="updateSelectedEmojis" 
+        @update:selectedEmojis="updateSelectedEmojis"
+        @showLightbox="showLightbox"
       />
     </div>
     <v-expansion-panels>
@@ -81,6 +86,17 @@
       </v-list>
     </div>
     <StyleNotification ref="notification" />
+    
+    <!-- Lightbox component -->
+    <v-dialog v-model="lightboxVisible" max-width="90vw">
+      <v-card>
+        <v-img :src="lightboxSrc" contain :width="'60vw'" :max-height="'60vh'" class="mx-auto"></v-img>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="primary" text @click="lightboxVisible = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+  </v-dialog>
   </div>
 </template>
 
@@ -214,6 +230,8 @@ export default {
       useCategoryAsFolder: false,
       folderName: '',
       folderIds: {},
+      lightboxVisible: false,
+      lightboxSrc: '',
     };
   },
   computed: {
@@ -232,7 +250,7 @@ export default {
   methods: {
     ...mapActions(['importAllEmojis']),
     loadSettings() {
-      console.log('loadSettings method called'); // デバッグ用
+      console.log('loadSettings method called');
       const lastSelectedDomain = localStorage.getItem('lastSelectedDomain');
       if (lastSelectedDomain) {
         const { emojiApiToken, driveApiToken } = utils.getToken(lastSelectedDomain);
@@ -501,14 +519,23 @@ export default {
     },
     clearSelectedEmojis() {
       this.selectedEmojis = [];
-    }
+    },
+    selectAll() {
+      this.selectedEmojis = [...this.emojis];
+    },
+    deselectAll() {
+      this.selectedEmojis = [];
+    },
+    showLightbox(src) {
+      this.lightboxSrc = src;
+      this.lightboxVisible = true;
+    },
   },
 };
 </script>
 
 <style scoped>
 .container {
-  /* max-width: 960px; */
   margin: 0 auto;
 }
 
@@ -578,5 +605,9 @@ export default {
 .emoji-input {
   min-height: 100px;
   resize: vertical;
+}
+
+.v-dialog >>> .v-image {
+  margin: 20px auto;
 }
 </style>
